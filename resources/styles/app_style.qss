@@ -1,0 +1,114 @@
+/* Main application style */
+QWidget {
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 10pt;
+}
+
+/* Task list styling */
+QListView {
+    background-color: rgba(255, 255, 255, 240);
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+QListView::item {
+    border-bottom: 1px solid #e0e0e0;
+    padding: 4px;
+}
+
+QListView::item:selected {
+    background-color: #e0e0ff;
+    color: #000000;
+}
+
+QListView::item:hover {
+    background-color: #f0f0f0;
+}
+
+/* Button styling */
+QPushButton {
+    background-color: #f0f0f0;
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+QPushButton:hover {
+    background-color: #e0e0e0;
+}
+
+QPushButton:pressed {
+    background-color: #d0d0d0;
+}
+
+/* Input field styling */
+QLineEdit, QTextEdit, QComboBox {
+    background-color: white;
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
+    border: 1px solid #a0a0ff;
+}
+
+/* Slider styling */
+QSlider::groove:horizontal {
+    border: 1px solid #c0c0c0;
+    height: 8px;
+    background: #f0f0f0;
+    margin: 2px 0;
+    border-radius: 4px;
+}
+
+QSlider::handle:horizontal {
+    background: #a0a0a0;
+    border: 1px solid #808080;
+    width: 18px;
+    margin: -2px 0;
+    border-radius: 9px;
+}
+
+QSlider::handle:horizontal:hover {
+    background: #808080;
+}
+
+/* Tab widget styling */
+QTabWidget::pane {
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    top: -1px;
+}
+
+QTabBar::tab {
+    background: #f0f0f0;
+    border: 1px solid #c0c0c0;
+    border-bottom-color: #c0c0c0;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    padding: 6px 10px;
+}
+
+QTabBar::tab:selected, QTabBar::tab:hover {
+    background: #ffffff;
+}
+
+QTabBar::tab:selected {
+    border-bottom-color: #ffffff;
+}
+
+/* Group box styling */
+QGroupBox {
+    border: 1px solid #c0c0c0;
+    border-radius: 4px;
+    margin-top: 1ex;
+    padding-top: 10px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top center;
+    padding: 0 3px;
+}
