@@ -13,6 +13,46 @@
 #include "notificationcontroller.h"
 #include <QDateTime>
 
+// Initialize static instance pointer
+NotificationController* NotificationController::s_instance = nullptr;
+
+/**
+ * @brief Get singleton instance
+ * 
+ * Returns a reference to the singleton NotificationController instance.
+ * Creates the instance if it doesn't exist yet.
+ * 
+ * @param taskModel Optional task model to use (only used on first call)
+ * @param trayIcon Optional system tray icon to use (only used on first call)
+ * @return NotificationController& Reference to the singleton instance
+ */
+NotificationController& NotificationController::instance(TaskModel* taskModel, QSystemTrayIcon* trayIcon)
+{
+    if (!s_instance) {
+        if (!taskModel) {
+            taskModel = new TaskModel();
+        }
+        s_instance = new NotificationController(taskModel, trayIcon);
+    } else if (trayIcon && s_instance->m_trayIcon == nullptr) {
+        s_instance->setTrayIcon(trayIcon);
+    }
+    return *s_instance;
+}
+
+/**
+ * @brief Cleanup the singleton instance
+ * 
+ * Deletes the singleton instance and sets it to nullptr.
+ * Useful for testing and application shutdown.
+ */
+void NotificationController::cleanup()
+{
+    if (s_instance) {
+        delete s_instance;
+        s_instance = nullptr;
+    }
+}
+
 /**
  * @brief Constructor
  * 
@@ -29,6 +69,28 @@ NotificationController::NotificationController(TaskModel* taskModel, QSystemTray
     // Create and connect timer for regular checking of due tasks
     m_timer = new QTimer(this);
     connect(m_timer, &QTimer::timeout, this, &NotificationController::onTimerTimeout);
+}
+
+/**
+ * @brief Destructor
+ * 
+ * Ensures the timer is stopped before destroying the controller.
+ */
+NotificationController::~NotificationController()
+{
+    stop();
+}
+
+/**
+ * @brief Set the system tray icon
+ * 
+ * Updates the system tray icon used for notifications.
+ * 
+ * @param trayIcon Pointer to the QSystemTrayIcon
+ */
+void NotificationController::setTrayIcon(QSystemTrayIcon* trayIcon)
+{
+    m_trayIcon = trayIcon;
 }
 
 /**

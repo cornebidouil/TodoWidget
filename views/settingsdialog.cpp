@@ -19,21 +19,25 @@
 #include <QDialogButtonBox>
 #include <QMessageBox>
 #include "categoryeditor.h"
+#include "projectstab.h"
 #include "../services/settingsmanager.h"
 #include "categorydelegate.h"
 
 /**
  * @brief Constructor
  * 
- * Creates a new SettingsDialog with the specified models and controllers.
- * Sets up the UI and loads current settings values.
+ * Creates a new SettingsDialog with the specified category model.
+ * Uses the controller singleton instances internally for categories and projects.
  * 
- * @param categoryModel Pointer to the CategoryModel for category management
- * @param categoryController Pointer to the CategoryController for category operations
+ * @param categoryModel Pointer to the category model
  * @param parent Optional parent widget
  */
-SettingsDialog::SettingsDialog(CategoryModel *categoryModel, CategoryController *categoryController, QWidget *parent)
-    : QDialog(parent), m_categoryModel(categoryModel), m_categoryController(categoryController)
+SettingsDialog::SettingsDialog(
+    CategoryModel *categoryModel,
+    QWidget *parent)
+    : QDialog(parent), 
+      m_categoryModel(categoryModel),
+      m_projectModel(ProjectController::instance().model()) // Get model from singleton
 {
     setupUi();
     loadSettings();
@@ -58,15 +62,18 @@ void SettingsDialog::setupUi()
     // Create tabs
     QWidget *generalTab = new QWidget();
     QWidget *categoriesTab = new QWidget();
+    QWidget *projectsTab = new QWidget();
     QWidget *notificationsTab = new QWidget();
 
     setupGeneralTab(generalTab);
     setupCategoriesTab(categoriesTab);
     setupNotificationsTab(notificationsTab);
+    setupProjectsTab(projectsTab);
 
     m_tabWidget->addTab(generalTab, "General");
     m_tabWidget->addTab(categoriesTab, "Categories");
     m_tabWidget->addTab(notificationsTab, "Notifications");
+    m_tabWidget->addTab(projectsTab, "Projects");
 
     mainLayout->addWidget(m_tabWidget);
 
@@ -187,6 +194,22 @@ void SettingsDialog::setupCategoriesTab(QWidget *tab)
     connect(editButton, &QPushButton::clicked, this, &SettingsDialog::onEditCategoryClicked);
     connect(deleteButton, &QPushButton::clicked, this, &SettingsDialog::onDeleteCategoryClicked);
     connect(m_categoryListView, &QListView::doubleClicked, this, &SettingsDialog::onCategoryDoubleClicked);
+}
+
+/**
+ * @brief Set up the Projects tab
+ * 
+ * Creates and configures the Projects tab using the ProjectsTab widget.
+ * 
+ * @param tab The widget to use for the Projects tab
+ */
+void SettingsDialog::setupProjectsTab(QWidget *tab)
+{
+    QVBoxLayout *layout = new QVBoxLayout(tab);
+    
+    // Create and add the ProjectsTab widget - now using singleton controller internally
+    ProjectsTab *projectsTab = new ProjectsTab(tab);
+    layout->addWidget(projectsTab);
 }
 
 /**
@@ -333,7 +356,7 @@ void SettingsDialog::onAddCategoryClicked()
     if (editor.exec() == QDialog::Accepted) {
         Category category = editor.category();
         // Use the controller to add the category
-        m_categoryController->addCategory(category.name(), category.color());
+        CategoryController::instance().addCategory(category.name(), category.color());
 
         // Update default category combo
         loadSettings();
@@ -389,7 +412,7 @@ void SettingsDialog::onDeleteCategoryClicked()
 
     if (reply == QMessageBox::Yes) {
         // Use the controller to delete the category
-        m_categoryController->deleteCategory(categoryId);
+        CategoryController::instance().deleteCategory(categoryId);
 
         // Update default category combo
         loadSettings();
@@ -420,7 +443,7 @@ void SettingsDialog::onCategoryDoubleClicked(const QModelIndex &index)
         Category editedCategory = editor.category();
 
         // Use the controller instead of directly modifying the model
-        m_categoryController->updateCategory(categoryId, editedCategory.name(), editedCategory.color());
+        CategoryController::instance().updateCategory(categoryId, editedCategory.name(), editedCategory.color());
 
         // Update default category combo
         loadSettings();

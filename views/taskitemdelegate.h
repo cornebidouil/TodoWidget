@@ -14,6 +14,8 @@
 
 #include <QStyledItemDelegate>
 #include "../models/categorymodel.h"
+#include "../controllers/taskcontroller.h"
+#include "../controllers/taskcontroller.h"
 
 /**
  * @class TaskItemDelegate

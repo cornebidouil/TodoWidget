@@ -25,20 +25,39 @@
  * It acts as an intermediary between the view and the model/database,
  * handling operations such as adding, updating, and deleting tasks,
  * as well as filtering, sorting, and persistence operations.
+ * 
+ * It is implemented as a singleton to ensure there is only one instance
+ * throughout the application.
  */
 class TaskController : public QObject {
     Q_OBJECT
 
 public:
     /**
-     * @brief Constructor
-     * 
-     * Creates a new TaskController connected to the specified TaskModel.
-     * 
-     * @param model Pointer to the TaskModel to be managed
-     * @param parent Optional parent QObject
+     * @brief Get the singleton instance
+     * @param model Optional task model to use (only used on first call)
+     * @return TaskController& Reference to the singleton instance
      */
-    explicit TaskController(TaskModel* model, QObject* parent = nullptr);
+    static TaskController& instance(TaskModel* model = nullptr);
+
+    /**
+     * @brief Destructor
+     */
+    ~TaskController();
+
+    /**
+     * @brief Cleanup the singleton instance
+     * 
+     * Deletes the singleton instance and sets it to nullptr.
+     * Useful for testing and application shutdown.
+     */
+    static void cleanup();
+
+    /**
+     * @brief Get the task model being managed
+     * @return TaskModel* Pointer to the task model
+     */
+    TaskModel* model() const { return m_taskModel; }
 
     /**
      * @brief Add a new task
@@ -169,5 +188,23 @@ signals:
     void tasksChanged();
 
 private:
+    /**
+     * @brief Private constructor to enforce singleton pattern
+     * @param model The task model to manage
+     * @param parent Optional parent QObject
+     */
+    explicit TaskController(TaskModel* model, QObject* parent = nullptr);
+
+    /**
+     * @brief Private copy constructor to enforce singleton pattern
+     */
+    TaskController(const TaskController&) = delete;
+    
+    /**
+     * @brief Private assignment operator to enforce singleton pattern
+     */
+    TaskController& operator=(const TaskController&) = delete;
+
     TaskModel* m_taskModel;  ///< Pointer to the task model being managed
+    static TaskController* s_instance;  ///< Singleton instance
 };

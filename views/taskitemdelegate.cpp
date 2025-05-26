@@ -186,9 +186,12 @@ bool TaskItemDelegate::editorEvent(QEvent *event, QAbstractItemModel *model, con
     QRect checkRect = checkboxRect(option);
 
     if (checkRect.contains(mouseEvent->pos())) {
-        // Toggle completion status
-        bool completed = index.data(TaskModel::CompletedRole).toBool();
-        model->setData(index, !completed, TaskModel::CompletedRole);
+        // Get the task ID
+        QString taskId = index.data(TaskModel::IdRole).toString();
+        if (!taskId.isEmpty()) {
+            // Use the controller to toggle and save the task completion status
+            TaskController::instance().toggleTaskCompletion(taskId);
+        }
         return true;
     }
 

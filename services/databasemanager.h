@@ -4,10 +4,10 @@
  * 
  * This file defines the DatabaseManager singleton class which handles all database
  * operations for the TODO Widget application. It provides methods for initializing
- * the database connection and performing CRUD operations on tasks and categories.
+ * the database connection and performing CRUD operations on tasks, categories, and time entries.
  * 
  * @author Cornebidouil
- * @date Last updated: April 28, 2025
+ * @date Last updated: April 29, 2025
  */
 
 #pragma once
@@ -18,6 +18,8 @@
 #include <QSqlQuery>
 #include "../models/task.h"
 #include "../models/category.h"
+#include "../models/timeentry.h"
+#include "../models/project.h"
 
 /**
  * @class DatabaseManager
@@ -146,6 +148,98 @@ public:
      */
     bool deleteCategory(const QString& id);
 
+    /**
+     * @brief Save multiple time entries
+     * 
+     * Saves a list of time entries to the database, performing either
+     * updates or inserts as needed.
+     * 
+     * @param timeEntries List of TimeEntry objects to save
+     * @return bool True if all time entries were saved successfully, false otherwise
+     */
+    bool saveTimeEntries(const QList<TimeEntry>& timeEntries);
+    
+    /**
+     * @brief Load all time entries
+     * 
+     * Retrieves all time entries from the database.
+     * 
+     * @return QList<TimeEntry> List of all time entries in the database
+     */
+    QList<TimeEntry> loadTimeEntries();
+    
+    /**
+     * @brief Save a single time entry
+     * 
+     * Saves a time entry to the database, performing either an update
+     * or an insert as needed.
+     * 
+     * @param timeEntry The TimeEntry object to save
+     * @return bool True if the time entry was saved successfully, false otherwise
+     */
+    bool saveTimeEntry(const TimeEntry& timeEntry);
+    
+    /**
+     * @brief Delete a time entry
+     * 
+     * Removes a time entry from the database by its ID.
+     * 
+     * @param id The ID of the time entry to delete
+     * @return bool True if the time entry was deleted successfully, false otherwise
+     */
+    bool deleteTimeEntry(const QString& id);
+
+    /**
+     * @brief Save multiple projects
+     * 
+     * Saves a list of projects to the database, performing either
+     * updates or inserts as needed.
+     * 
+     * @param projects List of Project objects to save
+     * @return bool True if all projects were saved successfully, false otherwise
+     */
+    bool saveProjects(const QList<Project>& projects);
+    
+    /**
+     * @brief Load all projects
+     * 
+     * Retrieves all projects from the database.
+     * 
+     * @return QList<Project> List of all projects in the database
+     */
+    QList<Project> loadProjects();
+    
+    /**
+     * @brief Save a single project
+     * 
+     * Saves a project to the database, performing either an update
+     * or an insert as needed.
+     * 
+     * @param project The Project object to save
+     * @return bool True if the project was saved successfully, false otherwise
+     */
+    bool saveProject(const Project& project);
+    
+    /**
+     * @brief Delete a project
+     * 
+     * Removes a project from the database by its ID.
+     * 
+     * @param id The ID of the project to delete
+     * @return bool True if the project was deleted successfully, false otherwise
+     */
+    bool deleteProject(const QString& id);
+
+    /**
+     * @brief Get time entries for a project
+     * 
+     * Retrieves all time entries associated with a specific project.
+     * 
+     * @param projectId The ID of the project to get time entries for
+     * @return QList<TimeEntry> List of time entries for the project
+     */
+    QList<TimeEntry> getTimeEntriesForProject(const QString& projectId) const;
+
 private:
     /**
      * @brief Private constructor
@@ -185,6 +279,42 @@ private:
      * @return bool True if tables were created successfully, false otherwise
      */
     bool createTables();
+
+    /**
+     * @brief Create the tasks table
+     * 
+     * Creates the tasks table if it doesn't exist.
+     * 
+     * @return bool True if the table was created successfully, false otherwise
+     */
+    bool createTasksTable();
+
+    /**
+     * @brief Create the categories table
+     * 
+     * Creates the categories table if it doesn't exist.
+     * 
+     * @return bool True if the table was created successfully, false otherwise
+     */
+    bool createCategoriesTable();
+
+    /**
+     * @brief Create the projects table
+     * 
+     * Creates the projects table if it doesn't exist.
+     * 
+     * @return bool True if the table was created successfully, false otherwise
+     */
+    bool createProjectsTable();
+
+    /**
+     * @brief Create the time_entries table
+     * 
+     * Creates the time_entries table if it doesn't exist.
+     * 
+     * @return bool True if the table was created successfully, false otherwise
+     */
+    bool createTimeEntriesTable();
 
     QSqlDatabase m_database;  ///< The SQLite database connection
     bool m_initialized;       ///< Flag indicating if the database is initialized

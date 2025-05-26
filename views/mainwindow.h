@@ -21,13 +21,19 @@
 #include <QMenu>
 #include <QAction>
 #include <QPoint>
+#include <QTabWidget>
 #include "../models/taskmodel.h"
 #include "../models/categorymodel.h"
+#include "../models/timeentrymodel.h"
+#include "../models/projectmodel.h"
 #include "../controllers/taskcontroller.h"
 #include "../controllers/categorycontroller.h"
 #include "../controllers/notificationcontroller.h"
+#include "../controllers/timetrackingcontroller.h"
+#include "../controllers/projectcontroller.h"
 #include "taskitemdelegate.h"
 #include "tasklistview.h"
+#include "timetrackerwidget.h"
 
 /**
  * @class MainWindow
@@ -234,13 +240,6 @@ private:
     void setupModels();
     
     /**
-     * @brief Set up the controllers
-     * 
-     * Initializes the task, category, and notification controllers.
-     */
-    void setupControllers();
-    
-    /**
      * @brief Set up signal-slot connections
      * 
      * Connects UI elements to their corresponding slots.
@@ -306,20 +305,26 @@ private:
     void toggleVisibility();
 
     // Models
-    TaskModel *m_taskModel;         ///< Model for tasks
-    CategoryModel *m_categoryModel; ///< Model for categories
+    TaskModel *m_taskModel;           ///< Model for tasks
+    CategoryModel *m_categoryModel;   ///< Model for categories
+    TimeEntryModel *m_timeEntryModel; ///< Model for time entries
+    ProjectModel *m_projectModel;     ///< Model for projects
 
-    // Controllers
-    TaskController *m_taskController;               ///< Controller for task operations
-    CategoryController *m_categoryController;       ///< Controller for category operations
+    // Controllers - using pointers to singletons
+    TaskController *m_taskController;                 ///< Controller for task operations
+    CategoryController *m_categoryController;         ///< Controller for category operations
     NotificationController *m_notificationController; ///< Controller for task notifications
+    TimeTrackingController *m_timeTrackingController; ///< Controller for time tracking operations
+    ProjectController *m_projectController;           ///< Controller for project operations
 
     // UI Elements
+    QTabWidget *m_tabWidget;            ///< Tab widget for main/time tracking views
     TaskListView *m_taskListView;        ///< Custom view for displaying tasks
     QLineEdit *m_quickAddEdit;           ///< Text field for quickly adding new tasks
     QComboBox *m_categoryFilterCombo;    ///< Dropdown for filtering tasks by category
     QPushButton *m_addTaskButton;        ///< Button for adding new tasks
     QPushButton *m_settingsButton;       ///< Button for opening settings dialog
+    TimeTrackerWidget *m_timeTrackerWidget; ///< Widget for time tracking
 
     // System Tray
     QSystemTrayIcon *m_trayIcon;    ///< System tray icon

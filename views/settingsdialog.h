@@ -22,6 +22,8 @@
 #include <QListView>
 #include "../models/categorymodel.h"
 #include "../controllers/categorycontroller.h"
+#include "../models/projectmodel.h"
+#include "../controllers/projectcontroller.h"
 
 /**
  * @class SettingsDialog
@@ -40,13 +42,15 @@ public:
     /**
      * @brief Constructor
      * 
-     * Creates a new SettingsDialog with the specified models and controllers.
+     * Creates a new SettingsDialog with the specified category model.
+     * Uses the controller singleton instances internally.
      * 
      * @param categoryModel Pointer to the category model
-     * @param categoryController Pointer to the category controller
      * @param parent Optional parent widget
      */
-    explicit SettingsDialog(CategoryModel *categoryModel, CategoryController *categoryController, QWidget *parent = nullptr);
+    explicit SettingsDialog(
+        CategoryModel *categoryModel, 
+        QWidget *parent = nullptr);
 
 private slots:
     /**
@@ -122,6 +126,15 @@ private:
     void setupCategoriesTab(QWidget *tab);
     
     /**
+     * @brief Set up the projects tab
+     * 
+     * Creates and arranges UI elements for the projects tab.
+     * 
+     * @param tab Widget container for the tab
+     */
+    void setupProjectsTab(QWidget *tab);
+    
+    /**
      * @brief Set up the notifications tab
      * 
      * Creates and arranges UI elements for the notifications tab.
@@ -145,7 +158,7 @@ private:
     void saveSettings();
 
     CategoryModel *m_categoryModel;           ///< Pointer to the category model
-    CategoryController *m_categoryController; ///< Pointer to the category controller
+    ProjectModel *m_projectModel;             ///< Pointer to the project model
 
     // UI elements
     QTabWidget *m_tabWidget;              ///< Tab container for settings sections

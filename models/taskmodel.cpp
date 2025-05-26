@@ -403,6 +403,8 @@ QList<Task> TaskModel::getTasks() const
 void TaskModel::setTasks(const QList<Task> &tasks)
 {
     beginResetModel();
+    
+    // Make a copy of the tasks that we can modify
     m_tasks = tasks;
     m_isFiltered = false;
     
@@ -416,7 +418,13 @@ void TaskModel::setTasks(const QList<Task> &tasks)
     }
     
     if (needsOrdering) {
+        // If some tasks don't have a valid display order, assign new sequential ones
         updateDisplayOrders();
+    } else {
+        // Sort the tasks by display_order
+        std::sort(m_tasks.begin(), m_tasks.end(), [](const Task &a, const Task &b) {
+            return a.displayOrder() < b.displayOrder();
+        });
     }
     
     endResetModel();
@@ -538,6 +546,12 @@ void TaskModel::filterByCategory(const QString &categoryId)
                 m_filteredTasks.append(task);
             }
         }
+        
+        // Sort filtered tasks by display_order to maintain the same order
+        std::sort(m_filteredTasks.begin(), m_filteredTasks.end(), [](const Task &a, const Task &b) {
+            return a.displayOrder() < b.displayOrder();
+        });
+        
         m_isFiltered = true;
     }
 

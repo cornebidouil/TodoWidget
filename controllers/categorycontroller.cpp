@@ -13,6 +13,43 @@
 #include "categorycontroller.h"
 #include <QDebug>
 
+// Initialize static instance pointer
+CategoryController* CategoryController::s_instance = nullptr;
+
+/**
+ * @brief Get singleton instance
+ * 
+ * Returns a reference to the singleton CategoryController instance.
+ * Creates the instance if it doesn't exist yet.
+ * 
+ * @param model Optional category model to use (only used on first call)
+ * @return CategoryController& Reference to the singleton instance
+ */
+CategoryController& CategoryController::instance(CategoryModel* model)
+{
+    if (!s_instance) {
+        if (!model) {
+            model = new CategoryModel();
+        }
+        s_instance = new CategoryController(model);
+    }
+    return *s_instance;
+}
+
+/**
+ * @brief Cleanup the singleton instance
+ * 
+ * Deletes the singleton instance and sets it to nullptr.
+ * Useful for testing and application shutdown.
+ */
+void CategoryController::cleanup()
+{
+    if (s_instance) {
+        delete s_instance;
+        s_instance = nullptr;
+    }
+}
+
 /**
  * @brief Constructor
  * 
@@ -34,6 +71,16 @@ CategoryController::CategoryController(CategoryModel* model, QObject* parent)
             this, &CategoryController::onModelChanged);
     connect(m_categoryModel, &QAbstractItemModel::modelReset, 
             this, &CategoryController::onModelChanged);
+}
+
+/**
+ * @brief Destructor
+ * 
+ * Saves categories before destruction.
+ */
+CategoryController::~CategoryController()
+{
+    saveCategories();
 }
 
 /**

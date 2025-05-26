@@ -7,7 +7,7 @@
  * and coordinates between controllers and models.
  * 
  * @author Cornebidouil
- * @date Last updated: April 28, 2025
+ * @date Last updated: April 29, 2025
  */
 
 #include "mainwindow.h"
@@ -24,6 +24,8 @@
 #include <QSizeGrip>
 #include "taskeditor.h"
 #include "settingsdialog.h"
+#include "timeentrydialog.h"
+#include "timereportsdialog.h"
 #include "../services/settingsmanager.h"
 
 /**
@@ -36,22 +38,39 @@
  * @param parent Optional parent widget
  */
 MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent), m_isDragging(false)
+    : QMainWindow(parent), 
+      m_isDragging(false)
 {
     // Basic UI setup
     setupUi();
 
     setupModels();
-    setupControllers();
-    setupConnections();
+    
+    // Initialize the controllers with their corresponding models
+    m_taskController = &TaskController::instance(m_taskModel);
+    m_categoryController = &CategoryController::instance(m_categoryModel);
+    
     setupSystemTray();
+    
+    // Now that we have the tray icon, set it in the notification controller
+    m_notificationController = &NotificationController::instance(m_taskModel, m_trayIcon);
+    
+    m_timeTrackingController = &TimeTrackingController::instance(m_timeEntryModel);
+    m_projectController = &ProjectController::instance(m_projectModel);
+    
+    setupConnections();
     loadSettings();
 
-    // Delay more intensive operations
-    //QTimer::singleShot(500, this, &MainWindow::delayedInitialization);
-
-    // Initialize controllers
+    // Initialize controllers - order matters here
     m_categoryController->loadCategories();
+    
+    // First load projects, then initialize time tracking controller
+    m_projectController->loadProjects();
+    m_timeTrackingController->initialize();
+    
+    // Now that projects and time entries are loaded, ensure the time tracker widget is updated
+    m_timeTrackerWidget->updateProjectComboBox();
+    
     m_taskController->loadTasks();
 
     // Start notification checking
@@ -165,7 +184,6 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event)
 void MainWindow::delayedInitialization()
 {
     setupModels();
-    setupControllers();
     setupConnections();
     setupSystemTray();
     loadSettings();
@@ -221,6 +239,16 @@ void MainWindow::setupUi()
 
     mainLayout->addLayout(titleBarLayout);
 
+    // Create tab widget
+    m_tabWidget = new QTabWidget(this);
+    mainLayout->addWidget(m_tabWidget, 1);
+
+    // Create task tab
+    QWidget *taskTab = new QWidget(this);
+    QVBoxLayout *taskLayout = new QVBoxLayout(taskTab);
+    taskLayout->setContentsMargins(0, 0, 0, 0);
+    taskLayout->setSpacing(5);
+
     // Create category filter
     QHBoxLayout *filterLayout = new QHBoxLayout();
     QLabel *filterLabel = new QLabel("Category:", this);
@@ -229,22 +257,15 @@ void MainWindow::setupUi()
     filterLayout->addWidget(filterLabel);
     filterLayout->addWidget(m_categoryFilterCombo, 1);
 
-    mainLayout->addLayout(filterLayout);
+    taskLayout->addLayout(filterLayout);
 
     // Create task list view
-    m_taskListView = new TaskListView(this); // new QListView(this);
+    m_taskListView = new TaskListView(this);
     m_taskListView->setSelectionMode(QAbstractItemView::SingleSelection);
     m_taskListView->setContextMenuPolicy(Qt::CustomContextMenu);
     m_taskListView->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
-    // Enable drag and drop
-    /*m_taskListView->setDragEnabled(true);
-    m_taskListView->setAcceptDrops(true);
-    m_taskListView->setDropIndicatorShown(true);
-    m_taskListView->setDragDropMode(QAbstractItemView::InternalMove);
-    m_taskListView->setDefaultDropAction(Qt::MoveAction);*/
-
-    mainLayout->addWidget(m_taskListView, 1);
+    taskLayout->addWidget(m_taskListView, 1);
 
     // Create quick add layout
     QHBoxLayout *quickAddLayout = new QHBoxLayout();
@@ -259,12 +280,17 @@ void MainWindow::setupUi()
     quickAddLayout->addWidget(m_quickAddEdit);
     quickAddLayout->addWidget(m_addTaskButton);
 
-    mainLayout->addLayout(quickAddLayout);
+    taskLayout->addLayout(quickAddLayout);
+
+    // Add the task tab to the tab widget
+    m_tabWidget->addTab(taskTab, "Tasks");
+
+    // Create time tracking tab
+    m_timeTrackerWidget = new TimeTrackerWidget(this);
+    m_tabWidget->addTab(m_timeTrackerWidget, "Time Tracking");
 
     // Add a size grip to the bottom-right corner
     QSizeGrip *sizeGrip = new QSizeGrip(this);
-
-    //sizeGrip->setStyleSheet("background: transparent;"); // Make it blend with your UI
     
     // Create a layout for the size grip
     QHBoxLayout *gripLayout = new QHBoxLayout();
@@ -282,30 +308,20 @@ void MainWindow::setupUi()
 /**
  * @brief Set up data models
  * 
- * Creates and initializes the task and category models,
+ * Creates and initializes the task, category, project, and time entry models,
  * and configures the task list view with the appropriate model and delegate.
  */
 void MainWindow::setupModels()
 {
     m_taskModel = new TaskModel(this);
     m_categoryModel = new CategoryModel(this);
+    m_timeEntryModel = new TimeEntryModel(this); //TimeTrackingController::instance().timeEntryModel();
+    m_projectModel = new ProjectModel(this);
 
     // Set up task list view with model and delegate
     m_taskListView->setModel(m_taskModel);
     TaskItemDelegate *delegate = new TaskItemDelegate(m_categoryModel, this);
     m_taskListView->setItemDelegate(delegate);
-}
-
-/**
- * @brief Set up controllers
- * 
- * Creates and initializes the task, category, and notification controllers.
- */
-void MainWindow::setupControllers()
-{
-    m_taskController = new TaskController(m_taskModel, this);
-    m_categoryController = new CategoryController(m_categoryModel, this);
-    m_notificationController = new NotificationController(m_taskModel, m_trayIcon, this);
 }
 
 /**
@@ -333,6 +349,17 @@ void MainWindow::setupConnections()
 
     // Connect controller signals
     connect(m_categoryController, &CategoryController::categoriesChanged, this, &MainWindow::populateCategoryFilter);
+    
+    // Connect project controller signals to update time tracking widgets
+    // Connect all the relevant signals for project changes to ensure the TimeTrackerWidget is updated
+    connect(m_projectController, &ProjectController::projectAdded, 
+            m_timeTrackerWidget, &TimeTrackerWidget::updateProjectComboBox);
+    connect(m_projectController, &ProjectController::projectUpdated, 
+            m_timeTrackerWidget, &TimeTrackerWidget::updateProjectComboBox);
+    connect(m_projectController, &ProjectController::projectDeleted, 
+            m_timeTrackerWidget, &TimeTrackerWidget::updateProjectComboBox);
+    connect(m_projectController, &ProjectController::projectsChanged, 
+            m_timeTrackerWidget, &TimeTrackerWidget::updateProjectComboBox);
 }
 
 /**
@@ -652,7 +679,10 @@ void MainWindow::onCategoryFilterChanged(int index)
  */
 void MainWindow::onSettingsClicked()
 {
-    SettingsDialog dialog(m_categoryModel, m_categoryController, this);
+    SettingsDialog dialog(
+        m_categoryModel, 
+        this
+    );
 
     if (dialog.exec() == QDialog::Accepted) {
         // Update window settings

@@ -24,9 +24,27 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QSharedMemory>
+#include "controllers/taskcontroller.h"
+#include "controllers/categorycontroller.h"
+#include "controllers/projectcontroller.h"
+#include "controllers/timetrackingcontroller.h"
+#include "controllers/notificationcontroller.h"
 #include "views/mainwindow.h"
-#include "services/databasemanager.h"
-#include "services/settingsmanager.h"
+
+/**
+ * @brief Clean up all singleton instances
+ * 
+ * Calls cleanup on all controller singletons to properly release resources.
+ * This should be called at application shutdown.
+ */
+void cleanupSingletons()
+{
+    TaskController::cleanup();
+    CategoryController::cleanup();
+    ProjectController::cleanup();
+    TimeTrackingController::cleanup();
+    NotificationController::cleanup();
+}
 
 /**
  * @brief Custom message handler for Qt logging
@@ -214,5 +232,10 @@ int main(int argc, char *argv[])
     }
 
     qInfo() << "Entering application event loop";
-    return app.exec();
+    int result = app.exec();
+    
+    // Clean up singletons before exit
+    cleanupSingletons();
+    
+    return result;
 }

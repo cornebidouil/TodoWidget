@@ -13,6 +13,43 @@
 #include "taskcontroller.h"
 #include <QDebug>
 
+// Initialize static instance pointer
+TaskController* TaskController::s_instance = nullptr;
+
+/**
+ * @brief Get singleton instance
+ * 
+ * Returns a reference to the singleton TaskController instance.
+ * Creates the instance if it doesn't exist yet.
+ * 
+ * @param model Optional task model to use (only used on first call)
+ * @return TaskController& Reference to the singleton instance
+ */
+TaskController& TaskController::instance(TaskModel* model)
+{
+    if (!s_instance) {
+        if (!model) {
+            model = new TaskModel();
+        }
+        s_instance = new TaskController(model);
+    }
+    return *s_instance;
+}
+
+/**
+ * @brief Cleanup the singleton instance
+ * 
+ * Deletes the singleton instance and sets it to nullptr.
+ * Useful for testing and application shutdown.
+ */
+void TaskController::cleanup()
+{
+    if (s_instance) {
+        delete s_instance;
+        s_instance = nullptr;
+    }
+}
+
 /**
  * @brief Constructor
  * 
@@ -24,6 +61,16 @@
 TaskController::TaskController(TaskModel* model, QObject* parent)
     : QObject(parent), m_taskModel(model)
 {
+}
+
+/**
+ * @brief Destructor
+ * 
+ * Saves tasks before destruction.
+ */
+TaskController::~TaskController()
+{
+    saveTasks();
 }
 
 /**

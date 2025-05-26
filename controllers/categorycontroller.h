@@ -25,20 +25,39 @@
  * It acts as an intermediary between the view and the model/database,
  * handling operations such as adding, updating, and deleting categories,
  * as well as persistence operations.
+ * 
+ * It is implemented as a singleton to ensure there is only one instance
+ * throughout the application.
  */
 class CategoryController : public QObject {
     Q_OBJECT
 
 public:
     /**
-     * @brief Constructor
-     * 
-     * Creates a new CategoryController connected to the specified CategoryModel.
-     * 
-     * @param model Pointer to the CategoryModel to be managed
-     * @param parent Optional parent QObject
+     * @brief Get the singleton instance
+     * @param model Optional category model to use (only used on first call)
+     * @return CategoryController& Reference to the singleton instance
      */
-    explicit CategoryController(CategoryModel* model, QObject* parent = nullptr);
+    static CategoryController& instance(CategoryModel* model = nullptr);
+
+    /**
+     * @brief Destructor
+     */
+    ~CategoryController();
+
+    /**
+     * @brief Cleanup the singleton instance
+     * 
+     * Deletes the singleton instance and sets it to nullptr.
+     * Useful for testing and application shutdown.
+     */
+    static void cleanup();
+
+    /**
+     * @brief Get the category model being managed
+     * @return CategoryModel* Pointer to the category model
+     */
+    CategoryModel* model() const { return m_categoryModel; }
 
     /**
      * @brief Add a new category
@@ -129,5 +148,23 @@ private slots:
     void onModelChanged();
 
 private:
+    /**
+     * @brief Private constructor to enforce singleton pattern
+     * @param model The category model to manage
+     * @param parent Optional parent QObject
+     */
+    explicit CategoryController(CategoryModel* model, QObject* parent = nullptr);
+
+    /**
+     * @brief Private copy constructor to enforce singleton pattern
+     */
+    CategoryController(const CategoryController&) = delete;
+    
+    /**
+     * @brief Private assignment operator to enforce singleton pattern
+     */
+    CategoryController& operator=(const CategoryController&) = delete;
+
     CategoryModel* m_categoryModel;  ///< Pointer to the category model being managed
+    static CategoryController* s_instance;  ///< Singleton instance
 };

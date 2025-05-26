@@ -4,10 +4,10 @@
  * 
  * This file implements the DatabaseManager class which provides a singleton interface
  * for database operations. It handles database initialization, connection management,
- * and CRUD operations for tasks and categories using SQLite.
+ * and CRUD operations for tasks, categories, and time entries using SQLite.
  * 
  * @author Cornebidouil
- * @date Last updated: April 28, 2025
+ * @date Last updated: April 29, 2025
  */
 
 #include "databasemanager.h"
@@ -160,7 +160,55 @@ bool DatabaseManager::createTables()
         qWarning() << "Failed to create categories table:" << query.lastError().text();
         return false;
     }
+    
+    // Create projects table
+    if (!createProjectsTable()) {
+        return false;
+    }
+    
+    // Create time entries table
+    if (!createTimeEntriesTable()) {
+        return false;
+    }
 
+    return true;
+}
+
+bool DatabaseManager::createProjectsTable()
+{
+    QSqlQuery query;
+    
+    // Create projects table
+    if (!query.exec("CREATE TABLE IF NOT EXISTS projects ("
+                   "id TEXT PRIMARY KEY, "
+                   "name TEXT NOT NULL, "
+                   "color TEXT, "
+                   "description TEXT, "
+                   "is_active INTEGER)")) {
+        qWarning() << "Failed to create projects table:" << query.lastError().text();
+        return false;
+    }
+    
+    return true;
+}
+
+bool DatabaseManager::createTimeEntriesTable()
+{
+    QSqlQuery query;
+    
+    // Create time_entries table
+    if (!query.exec("CREATE TABLE IF NOT EXISTS time_entries ("
+                   "id TEXT PRIMARY KEY, "
+                   "project_id TEXT NOT NULL, "
+                   "start_time TEXT NOT NULL, "
+                   "end_time TEXT, "
+                   "duration INTEGER, "
+                   "notes TEXT, "
+                   "FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE)")) {
+        qWarning() << "Failed to create time_entries table:" << query.lastError().text();
+        return false;
+    }
+    
     return true;
 }
 
@@ -271,8 +319,8 @@ bool DatabaseManager::saveTask(const Task& task)
     }
 
     QSqlQuery query;
-    query.prepare("INSERT OR REPLACE INTO tasks (id, title, description, completed, created_date, due_date, category_id, priority) "
-                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    query.prepare("INSERT OR REPLACE INTO tasks (id, title, description, completed, created_date, due_date, category_id, priority, display_order) "
+                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
     query.bindValue(0, task.id());
     query.bindValue(1, task.title());
@@ -282,6 +330,7 @@ bool DatabaseManager::saveTask(const Task& task)
     query.bindValue(5, task.dueDate().isValid() ? task.dueDate().toString(Qt::ISODate) : "");
     query.bindValue(6, task.categoryId());
     query.bindValue(7, task.priority());
+    query.bindValue(8, task.displayOrder());
 
     if (!query.exec()) {
         qWarning() << "Failed to save task:" << query.lastError().text();
@@ -433,6 +482,149 @@ bool DatabaseManager::saveCategory(const Category& category)
  * @param id The ID of the category to delete
  * @return bool True if the category was deleted successfully, false otherwise
  */
+/**
+ * @brief Save multiple projects
+ * 
+ * Saves a list of projects to the database in a single transaction.
+ * This method deletes all existing projects and replaces them with the new list.
+ * 
+ * @param projects List of Project objects to save
+ * @return bool True if all projects were saved successfully, false otherwise
+ */
+bool DatabaseManager::saveProjects(const QList<Project>& projects)
+{
+    if (!m_initialized) {
+        return false;
+    }
+
+    // Start a transaction for better performance
+    m_database.transaction();
+
+    // Clear existing projects
+    QSqlQuery clearQuery;
+    if (!clearQuery.exec("DELETE FROM projects")) {
+        m_database.rollback();
+        return false;
+    }
+
+    // Insert all projects
+    QSqlQuery query;
+    query.prepare("INSERT INTO projects (id, name, color, description, is_active) VALUES (?, ?, ?, ?, ?)");
+
+    for (const Project& project : projects) {
+        query.bindValue(0, project.id());
+        query.bindValue(1, project.name());
+        query.bindValue(2, project.color().name(QColor::HexArgb));
+        query.bindValue(3, project.description());
+        query.bindValue(4, project.isActive() ? 1 : 0);
+
+        if (!query.exec()) {
+            m_database.rollback();
+            qWarning() << "Failed to save project:" << query.lastError().text();
+            return false;
+        }
+    }
+
+    return m_database.commit();
+}
+
+/**
+ * @brief Load all projects
+ * 
+ * Retrieves all projects from the database.
+ * 
+ * @return QList<Project> List of projects retrieved from the database
+ */
+QList<Project> DatabaseManager::loadProjects()
+{
+    QList<Project> projects;
+
+    if (!m_initialized) {
+        return projects;
+    }
+
+    QSqlQuery query("SELECT id, name, color, description, is_active FROM projects");
+
+    while (query.next()) {
+        Project project;
+        project.setId(query.value(0).toString());
+        project.setName(query.value(1).toString());
+        project.setColor(QColor(query.value(2).toString()));
+        project.setDescription(query.value(3).toString());
+        project.setActive(query.value(4).toBool());
+
+        projects.append(project);
+    }
+
+    return projects;
+}
+
+/**
+ * @brief Save a single project
+ * 
+ * Saves a single project to the database. If a project with the same ID already exists,
+ * it will be replaced with the new project.
+ * 
+ * @param project The Project object to save
+ * @return bool True if the project was saved successfully, false otherwise
+ */
+bool DatabaseManager::saveProject(const Project& project)
+{
+    if (!m_initialized) {
+        return false;
+    }
+
+    QSqlQuery query;
+    query.prepare("INSERT OR REPLACE INTO projects (id, name, color, description, is_active) VALUES (?, ?, ?, ?, ?)");
+
+    query.bindValue(0, project.id());
+    query.bindValue(1, project.name());
+    query.bindValue(2, project.color().name(QColor::HexArgb));
+    query.bindValue(3, project.description());
+    query.bindValue(4, project.isActive() ? 1 : 0);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to save project:" << query.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief Delete a project
+ * 
+ * Deletes a project from the database by its ID.
+ * 
+ * @param id The ID of the project to delete
+ * @return bool True if the project was deleted successfully, false otherwise
+ */
+bool DatabaseManager::deleteProject(const QString& id)
+{
+    if (!m_initialized) {
+        return false;
+    }
+
+    QSqlQuery query;
+    query.prepare("DELETE FROM projects WHERE id = ?");
+    query.bindValue(0, id);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to delete project:" << query.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief Delete a category
+ * 
+ * Deletes a category from the database by its ID.
+ * 
+ * @param id The ID of the category to delete
+ * @return bool True if the category was deleted successfully, false otherwise
+ */
 bool DatabaseManager::deleteCategory(const QString& id)
 {
     if (!m_initialized) {
@@ -449,4 +641,200 @@ bool DatabaseManager::deleteCategory(const QString& id)
     }
 
     return true;
+}
+
+/**
+ * @brief Save multiple time entries
+ * 
+ * Saves a list of time entries to the database in a single transaction.
+ * This method deletes all existing time entries and replaces them with the new list.
+ * 
+ * @param timeEntries List of TimeEntry objects to save
+ * @return bool True if all time entries were saved successfully, false otherwise
+ */
+bool DatabaseManager::saveTimeEntries(const QList<TimeEntry>& timeEntries)
+{
+    if (!m_initialized) {
+        return false;
+    }
+
+    // Start a transaction for better performance
+    m_database.transaction();
+
+    // Clear existing time entries
+    QSqlQuery clearQuery;
+    if (!clearQuery.exec("DELETE FROM time_entries")) {
+        m_database.rollback();
+        return false;
+    }
+
+    // Insert all time entries
+    QSqlQuery query;
+    query.prepare("INSERT INTO time_entries (id, project_id, start_time, end_time, duration, notes) "
+                 "VALUES (?, ?, ?, ?, ?, ?)");
+
+    for (const TimeEntry& entry : timeEntries) {
+        query.bindValue(0, entry.id());
+        query.bindValue(1, entry.projectId());
+        query.bindValue(2, entry.startTime().toString(Qt::ISODate));
+        query.bindValue(3, entry.endTime().isValid() ? entry.endTime().toString(Qt::ISODate) : "");
+        query.bindValue(4, entry.duration());
+        query.bindValue(5, entry.notes());
+
+        if (!query.exec()) {
+            m_database.rollback();
+            qWarning() << "Failed to save time entry:" << query.lastError().text();
+            return false;
+        }
+    }
+
+    return m_database.commit();
+}
+
+/**
+ * @brief Load all time entries
+ * 
+ * Retrieves all time entries from the database.
+ * 
+ * @return QList<TimeEntry> List of time entries retrieved from the database
+ */
+QList<TimeEntry> DatabaseManager::loadTimeEntries()
+{
+    QList<TimeEntry> timeEntries;
+
+    if (!m_initialized) {
+        return timeEntries;
+    }
+
+    QSqlQuery query("SELECT id, project_id, start_time, end_time, duration, notes FROM time_entries");
+
+    while (query.next()) {
+        TimeEntry entry;
+        entry.setId(query.value(0).toString());
+        entry.setProjectId(query.value(1).toString());
+        entry.setStartTime(QDateTime::fromString(query.value(2).toString(), Qt::ISODate));
+        
+        QString endTimeStr = query.value(3).toString();
+        if (!endTimeStr.isEmpty()) {
+            entry.setEndTime(QDateTime::fromString(endTimeStr, Qt::ISODate));
+        }
+        
+        if (!query.value(4).isNull()) {
+            entry.setDuration(query.value(4).toInt());
+        }
+        
+        entry.setNotes(query.value(5).toString());
+
+        timeEntries.append(entry);
+    }
+
+    return timeEntries;
+}
+
+/**
+ * @brief Save a single time entry
+ * 
+ * Saves a single time entry to the database. If a time entry with the same ID already exists,
+ * it will be replaced with the new time entry.
+ * 
+ * @param timeEntry The TimeEntry object to save
+ * @return bool True if the time entry was saved successfully, false otherwise
+ */
+bool DatabaseManager::saveTimeEntry(const TimeEntry& timeEntry)
+{
+    if (!m_initialized) {
+        return false;
+    }
+
+    QSqlQuery query;
+    query.prepare("INSERT OR REPLACE INTO time_entries (id, project_id, start_time, end_time, duration, notes) "
+                 "VALUES (?, ?, ?, ?, ?, ?)");
+
+    query.bindValue(0, timeEntry.id());
+    query.bindValue(1, timeEntry.projectId());
+    query.bindValue(2, timeEntry.startTime().toString(Qt::ISODate));
+    query.bindValue(3, timeEntry.endTime().isValid() ? timeEntry.endTime().toString(Qt::ISODate) : "");
+    query.bindValue(4, timeEntry.duration());
+    query.bindValue(5, timeEntry.notes());
+
+    if (!query.exec()) {
+        qWarning() << "Failed to save time entry:" << query.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief Delete a time entry
+ * 
+ * Deletes a time entry from the database by its ID.
+ * 
+ * @param id The ID of the time entry to delete
+ * @return bool True if the time entry was deleted successfully, false otherwise
+ */
+bool DatabaseManager::deleteTimeEntry(const QString& id)
+{
+    if (!m_initialized) {
+        return false;
+    }
+
+    QSqlQuery query;
+    query.prepare("DELETE FROM time_entries WHERE id = ?");
+    query.bindValue(0, id);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to delete time entry:" << query.lastError().text();
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief Get time entries for a project
+ *
+ * Retrieves all time entries associated with a specific project.
+ *
+ * @param projectId The ID of the project to get time entries for
+ * @return QList<TimeEntry> List of time entries for the project
+ */
+QList<TimeEntry> DatabaseManager::getTimeEntriesForProject(const QString& projectId) const
+{
+    QList<TimeEntry> timeEntries;
+
+    if (!m_initialized) {
+        return timeEntries;
+    }
+
+    QSqlQuery query;
+    query.prepare("SELECT id, project_id, start_time, end_time, duration, notes FROM time_entries WHERE project_id = ?");
+    query.bindValue(0, projectId);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to query time entries for project:" << query.lastError().text();
+        return timeEntries;
+    }
+
+    while (query.next()) {
+        TimeEntry entry;
+        entry.setId(query.value(0).toString());
+        entry.setProjectId(query.value(1).toString());
+        entry.setStartTime(QDateTime::fromString(query.value(2).toString(), Qt::ISODate));
+
+        QString endTimeStr = query.value(3).toString();
+        if (!endTimeStr.isEmpty()) {
+            entry.setEndTime(QDateTime::fromString(endTimeStr, Qt::ISODate));
+        }
+
+        if (!query.value(4).isNull()) {
+            entry.setDuration(query.value(4).toInt());
+        }
+
+        entry.setNotes(query.value(5).toString());
+
+        timeEntries.append(entry);
+    }
+
+    return timeEntries;
 }
